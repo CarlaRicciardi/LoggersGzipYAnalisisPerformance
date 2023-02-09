@@ -4,8 +4,8 @@
   "description": "algo random testeando",
   "main": "index.js",
   "scripts": {
-    "test": "node autocannon.js",
-    "start": "0x server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "algoritmos",
