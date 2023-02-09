@@ -1,13 +1,19 @@
 const express = require('express');
 const app = express();
-const PORT = parseInt(process.argv[2]) || 8080;
-const clusterMode = process.argv[3] == 'CLUSTER';
+
+if (process.env.MODE != 'production') {
+  require('dotenv').config();
+}
+
+const PORT = process.env.PORT;
+const MODE = process.env.MODE;
+const MONGO_URL = process.env.MONGO_URL;
 
 const httpServer = require('http').createServer(app);
 
 //COMPRESION GZIP
-// const compression = require('compression');
-// app.use(compression());
+const compression = require('compression');
+app.use(compression());
 
 const io = require('socket.io')(httpServer);
 const generateFakeProducts = require('./utils/fakeProductGenerator');
@@ -17,10 +23,6 @@ const mongoose = require('mongoose');
 // const { normalize, schema, denormalize } = require('normalizr');
 const config = require('./config.js');
 const path = require('path');
-
-//yargs
-// const yargs = require('yargs/yargs')(process.argv.slice(2));
-// const args = yargs.default({ PORT: 8080 }).alias({ p: 'PORT' }).argv;
 
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
