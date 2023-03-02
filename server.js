@@ -15,14 +15,12 @@ const httpServer = require('http').createServer(app);
 const compression = require('compression');
 app.use(compression());
 
-const io = require('socket.io')(httpServer);
-const generateFakeProducts = require('./utils/fakeProductGenerator');
-const MensajesDaoMongoDB = require('./daos/mensajesDaoMongoDB.js');
-const ProductosDaoMongoDB = require('./daos/productosDaoMongoDB.js');
+// const io = require('socket.io')(httpServer);
+// const MensajesDaoMongoDB = require('./daos/mensajesDaoMongoDB.js');
+// const ProductosDaoMongoDB = require('./daos/productosDaoMongoDB.js');
 const mongoose = require('mongoose');
-// const { normalize, schema, denormalize } = require('normalizr');
-const config = require('./config.js');
-const path = require('path');
+
+const routerDatos = require('./ROUTES-LAYER/datos.js');
 
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
@@ -32,7 +30,6 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const Users = require('./models/users.js');
 const bcrypt = require('bcrypt');
-const routes = require('./routes.js');
 
 const { engine } = require('express-handlebars');
 
@@ -40,9 +37,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.enable('trust proxy');
 
-// app.use('/public', express.static(__dirname + '/public'));
+app.use('/public', express.static(__dirname + '/public'));
 
-//handlebars settings
+app.use('/', routerDatos);
+
+// handlebars settings
 app.set('view engine', 'hbs');
 app.set('views', './views');
 app.engine(
@@ -58,10 +57,10 @@ app.engine(
 //fork
 const { fork } = require('child_process');
 
-//MONGOOSE CONNECTION
+// MONGOOSE CONNECTION
 async function connectMG() {
   try {
-    await mongoose.connect(config.MONGO, { useNewUrlParser: true });
+    await mongoose.connect(MONGO_URL, { useNewUrlParser: true });
     console.log('Conectado a mongo!');
   } catch (e) {
     console.log(e);
@@ -71,10 +70,10 @@ async function connectMG() {
 
 connectMG();
 
-const products = new ProductosDaoMongoDB();
+// const products = new ProductosDaoMongoDB();
 const msgs = new MensajesDaoMongoDB();
 
-//config passport
+// //config passport
 function isValidPassword(user, password) {
   return bcrypt.compareSync(password, user.password);
 }
@@ -127,7 +126,7 @@ passport.use(
             console.log('error in saving user:' + err);
             return done(err);
           }
-          console.log(user);
+          console.log('user', user);
           console.log('user registration succesful');
           return done(null, userWithId);
         });
@@ -143,11 +142,11 @@ passport.deserializeUser((id, done) => {
   Users.findById(id, done);
 });
 
-//SESSION WITH MONGO
+// //SESSION WITH MONGO
 app.use(
   session({
     store: MongoStore.create({
-      mongoUrl: config.MONGO,
+      mongoUrl: MONGO_URL,
       mongoOptions: {
         useNewUrlParser: true,
         useUnifiedTopology: true,
@@ -166,60 +165,31 @@ app.use(passport.session()); //meto la sesion de passport adentro de la app (ser
 
 app.enable('trust proxy');
 
-//-----------ROUTES
-//INDEX
-app.get('/', routes.getRoute);
+// //BACK END
+// //WEBSOCKET PARA TABLA DE PRODUCTOS
+// //1) conexion server
+// io.on('connection', async (socket) => {
+//   console.log('usuario conectado');
+//   // console.log('getall:', await products.getAll())
+//   socket.emit('msgs', await msgs.getAll());
+//   const test = await products.getAll();
+//   socket.emit('products', test);
+//   const aux = generateFakeProducts(5);
+//   socket.emit('prod-test', aux);
 
-//LOGIN
-app.get('/login', routes.getLogin);
-app.get('/failLogin', routes.getFailLogin);
-app.post('/login', passport.authenticate('login', { failureRedirect: '/failLogin' }), routes.postLogin);
+//   //3) atrapamos el sendProd que hace el front cuando llena el form
+//   socket.on('newProd', async (data) => {
+//     await products.save(data);
+//     const updateList = await products.getAll();
+//     io.sockets.emit('products', updateList); //se la envio a todos los sockets
+//   });
 
-//SIGNUP
-app.get('/signup', routes.getSignUp);
-app.get('/failSignUp', routes.getFailSignUp);
-app.post('/signup', passport.authenticate('signup', { failureRedirect: '/failSignUp' }), routes.postSignUp);
-
-//LOGOUT
-app.get('/logout', routes.getLogout);
-
-//GET INFO
-app.get('/info', routes.getInfo);
-
-app.get('/datos', (req, res) => {
-  console.log(`port: ${PORT} -> Fyh: ${Date.now()}`);
-  res.send(`Servidor express <span style="color:blueviolet;">(Nginx)</span> en ${PORT} - 
-    <b>PID ${process.pid}</b> - ${new Date().toLocaleString()}`);
-});
-
-//FAILROUTE
-app.get('*', routes.failRoute);
-
-//BACK END
-//WEBSOCKET PARA TABLA DE PRODUCTOS
-//1) conexion server
-io.on('connection', async (socket) => {
-  console.log('usuario conectado');
-  // console.log('getall:', await products.getAll())
-  socket.emit('msgs', await msgs.getAll());
-  const test = await products.getAll();
-  socket.emit('products', test);
-  const aux = generateFakeProducts(5);
-  socket.emit('prod-test', aux);
-
-  //3) atrapamos el sendProd que hace el front cuando llena el form
-  socket.on('newProd', async (data) => {
-    await products.save(data);
-    const updateList = await products.getAll();
-    io.sockets.emit('products', updateList); //se la envio a todos los sockets
-  });
-
-  socket.on('newMsg', async (data) => {
-    await msgs.save(data);
-    const msgsList = msgs.getAll();
-    io.sockets.emit('msgs', msgsList);
-  });
-});
+//   socket.on('newMsg', async (data) => {
+//     await msgs.save(data);
+//     const msgsList = msgs.getAll();
+//     io.sockets.emit('msgs', msgsList);
+//   });
+// });
 httpServer.listen(PORT, () => {
   console.log('Servidor http escuchando en el puerto http://localhost:' + PORT);
 });

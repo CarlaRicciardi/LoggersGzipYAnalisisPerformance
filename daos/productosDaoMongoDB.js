@@ -1,4 +1,4 @@
-const contenedorMongoDB = require('../classContainer/contenedorMongoDB.js');
+const contenedorMongoDB = require('../PERSISTENT-LAYER/datos.js.js');
 const modelProducts = require('../models/modelProducts.js');
 
 class ProductosDaoMongoDB extends contenedorMongoDB {
